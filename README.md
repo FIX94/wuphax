@@ -3,8 +3,9 @@ Hacking the vwii side of the wiiu using iosuhax and wupclient
 
 # Usage
 Make sure to have iosuhax with only wupserver enabled set up already, this version can be found in my fork of iosuhax.  
+If you are on windows and cant compile iosuhax because of armips, [here is a exe](https://mega.nz/#!Mw5UVTTB!8DFGcSAj5APcYy6nJrwXdLiDITTCJT8xKXAqepXEU-w) which will work down to windows xp.  
 Download the release of this project and extract it into a new folder.  
-Download the hackmii installer and put its boot.elf on your sd card.  
+Download the [hackmii installer](https://bootmii.org/download/) and put its boot.elf on your sd card.  
 To use this start up iosuhax and edit the wiiu ip in wupclient.py (line 29) to match the one you have.  
 After that run backup.py, this should give you a 00000001.app if everything went well.  
 Run injectdol.py, this should give you a boot.app.  
