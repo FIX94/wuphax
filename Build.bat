@@ -1,9 +1,12 @@
 @echo off
 
+cd vwii
 mkdir data 2>/nul
-cd app_booter
+cd ../wiiu
+mkdir data 2>/nul
+cd ../vwii/app_booter
 echo.
-echo Building App Booter
+echo Building vWii App Booter
 echo.
 make clean
 make
@@ -11,7 +14,15 @@ mv app_booter.bin ../data
 
 cd ..
 echo.
-echo Building Loader
+echo Building vWii Loader
+echo.
+make clean
+make
+mv boot.dol ../wiiu/data
+
+cd ../wiiu
+echo.
+echo Building WiiU Installer
 echo.
 make clean
 make
