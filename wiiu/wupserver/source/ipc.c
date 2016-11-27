@@ -197,6 +197,7 @@ static int ipc_ioctl(ipcmessage *message)
     //! TODO: add checks for i/o buffer length
     case IOCTL_FSA_OPEN:
     {
+        // points to "/dev/fsa" string in mcp data section
         message->ioctl.buffer_io[0] = svcOpen((char*)0x0506963C, 0);
         break;
     }
@@ -418,10 +419,11 @@ int ipc_thread(void *arg)
     ipcmessage *message;
     /*u32* messageQueue = svcAllocAlign(0xCAFF, 0x20, 0x20);
     int queueId = svcCreateMessageQueue(messageQueue, 0x10);*/
+    // mcp main thread message queue listening on "/dev/mcp"
 	int queueId = *(int*)0x5070AEC;
 	int exit = 0;
 	while(!exit)
-	{
+    {
         res = svcReceiveMessage(queueId, &message, 0);
         if(res < 0)
         {
@@ -440,7 +442,7 @@ int ipc_thread(void *arg)
             case IOS_CLOSE:
             {
                 //log_printf("IOS_CLOSE\n");
-				exit = 1;
+                exit = 1;
                 res = 0;
                 break;
             }
@@ -465,14 +467,14 @@ int ipc_thread(void *arg)
         }
 
         svcResourceReply(message, res);
-	}
+    }
 
-	return res;
+    return res;
 }
 
 /*void ipc_init(void)
 {
     int threadId = svcCreateThread(ipc_thread, 0, (u32*)(threadStack + sizeof(threadStack)), sizeof(threadStack), 0x78, 1);
     if(threadId >= 0)
-		svcStartThread(threadId);
+        svcStartThread(threadId);
 }*/

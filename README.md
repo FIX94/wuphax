@@ -9,3 +9,6 @@ Put it into your wiiu/apps folder on your sd card and run it in homebrew launche
 Press A to back up your current mii channel and inject it with wuphax.  
 After the wiiu restarted, go into wii mode and run mii channel, install homebrew channel from there.  
 To restore the mii channel just run the elf again and press B this time.  
+
+# Dependencies
+To properly compile this project yourself you will need libiosuhax from my github fork.  
