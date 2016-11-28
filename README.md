@@ -11,4 +11,4 @@ After the wiiu restarted, go into wii mode and run mii channel, install homebrew
 To restore the mii channel just run the elf again and press B this time.  
 
 # Dependencies
-To properly compile this project yourself you will need libiosuhax from my github fork.  
+To properly compile this project yourself you will need the latest libiosuhax from dimok789's github.  

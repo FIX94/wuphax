@@ -42,7 +42,7 @@ int MCPHookOpen()
 	IOS_IoctlAsync(mcp_hook_fd, 0x62, (void*)0, 0, (void*)0, 0, someFunc, (void*)0);
 	//let wupserver start up
 	sleep(1);
-	if(IOSUHAX_Open() < 0)
+	if(IOSUHAX_Open("/dev/mcp") < 0)
 		return -1;
 	return 0;
 }
@@ -59,9 +59,6 @@ void MCPHookClose()
 	mcp_hook_fd = -1;
 }
 
-static unsigned char *screenBuffer = (unsigned char*)0xF4000000;
-static int screen_buf0_size = 0;
-static int screen_buf1_size = 0;
 void println(int line, const char *msg)
 {
 	int i;
@@ -83,8 +80,9 @@ int Menu_Main(void)
 
     // Init screen
     OSScreenInit();
-    screen_buf0_size = OSScreenGetBufferSizeEx(0);
-    screen_buf1_size = OSScreenGetBufferSizeEx(1);
+    int screen_buf0_size = OSScreenGetBufferSizeEx(0);
+    int screen_buf1_size = OSScreenGetBufferSizeEx(1);
+	uint8_t *screenBuffer = memalign(0x100, screen_buf0_size+screen_buf1_size);
     OSScreenSetBufferEx(0, screenBuffer);
     OSScreenSetBufferEx(1, (screenBuffer + screen_buf0_size));
     OSScreenEnableEx(0, 1);
@@ -92,7 +90,7 @@ int Menu_Main(void)
 	OSScreenClearBufferEx(0, 0);
 	OSScreenClearBufferEx(1, 0);
 
-    println(0,"wuphax v1.1 by FIX94");
+    println(0,"wuphax v1.1u1 by FIX94");
 	println(2,"Press A to backup your Mii Channel and inject wuphax.");
 	println(3,"Press B to restore your Mii Channel from SD Card.");
 
@@ -107,7 +105,10 @@ int Menu_Main(void)
         if(vpadError == 0)
 		{
 			if((vpad.btns_d | vpad.btns_h) & VPAD_BUTTON_HOME)
+			{
+				free(screenBuffer);
 				return EXIT_SUCCESS;
+			}
 			else if((vpad.btns_d | vpad.btns_h) & VPAD_BUTTON_A)
 				break;
 			else if((vpad.btns_d | vpad.btns_h) & VPAD_BUTTON_B)
@@ -333,5 +334,6 @@ prgEnd:
     SYSLaunchMenu();
     OSScreenEnableEx(0, 0);
     OSScreenEnableEx(1, 0);
+	free(screenBuffer);
     return EXIT_RELAUNCH_ON_LOAD;
 }
