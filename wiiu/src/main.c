@@ -8,6 +8,7 @@
 #include <malloc.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <iosuhax.h>
 #include "dynamic_libs/os_functions.h"
 #include "dynamic_libs/sys_functions.h"
 #include "dynamic_libs/vpad_functions.h"
@@ -15,7 +16,7 @@
 #include "common/common.h"
 #include "main.h"
 #include "exploit.h"
-#include "iosuhax.h"
+#include "../payload/wupserver_bin.h"
 
 static const char *vWiiVolPath = "/vol/storage_slccmpt01";
 static const char *sdCardVolPath = "/vol/storage_sdcard";
@@ -76,33 +77,33 @@ int Menu_Main(void)
 	InitOSFunctionPointers();
 	InitSysFunctionPointers();
 	InitVPadFunctionPointers();
-    VPADInit();
+	VPADInit();
 
-    // Init screen
-    OSScreenInit();
-    int screen_buf0_size = OSScreenGetBufferSizeEx(0);
-    int screen_buf1_size = OSScreenGetBufferSizeEx(1);
+	// Init screen
+	OSScreenInit();
+	int screen_buf0_size = OSScreenGetBufferSizeEx(0);
+	int screen_buf1_size = OSScreenGetBufferSizeEx(1);
 	uint8_t *screenBuffer = memalign(0x100, screen_buf0_size+screen_buf1_size);
-    OSScreenSetBufferEx(0, screenBuffer);
-    OSScreenSetBufferEx(1, (screenBuffer + screen_buf0_size));
-    OSScreenEnableEx(0, 1);
-    OSScreenEnableEx(1, 1);
+	OSScreenSetBufferEx(0, screenBuffer);
+	OSScreenSetBufferEx(1, (screenBuffer + screen_buf0_size));
+	OSScreenEnableEx(0, 1);
+	OSScreenEnableEx(1, 1);
 	OSScreenClearBufferEx(0, 0);
 	OSScreenClearBufferEx(1, 0);
 
-    println(0,"wuphax v1.1u1 by FIX94");
+	println(0,"wuphax v1.1u2 by FIX94");
 	println(2,"Press A to backup your Mii Channel and inject wuphax.");
 	println(3,"Press B to restore your Mii Channel from SD Card.");
 
-    int vpadError = -1;
-    VPADData vpad;
+	int vpadError = -1;
+	VPADData vpad;
 	//wait for user to decide option
 	int action = 0;
-    while(1)
-    {
-        VPADRead(0, &vpad, 1, &vpadError);
+	while(1)
+	{
+		VPADRead(0, &vpad, 1, &vpadError);
 
-        if(vpadError == 0)
+		if(vpadError == 0)
 		{
 			if((vpad.btns_d | vpad.btns_h) & VPAD_BUTTON_HOME)
 			{
@@ -118,35 +119,45 @@ int Menu_Main(void)
 			}
 		}
 		usleep(50000);
-    }
-	//will inject our custom mcp code
-	println(5,"Doing IOSU Exploit...");
-	IOSUExploit();
+	}
 
+	int line = 5;
 	int fsaFd = -1;
 	int sdMounted = 0, vWiiMounted = 0;
 	int sdFd = -1, vWiiFd = -1;
 	void *appBuf = NULL;
 
-	//done with iosu exploit, take over mcp
-	if(MCPHookOpen() < 0)
+	//open up iosuhax
+	int res = IOSUHAX_Open(NULL);
+	if(res < 0)
+		res = MCPHookOpen();
+	if(res < 0)
 	{
-		println(6,"MCP hook could not be opened!");
-		goto prgEnd;
+		println(line++,"Doing IOSU Exploit...");
+		*(volatile unsigned int*)0xF5E70000 = wupserver_bin_len;
+		memcpy((void*)0xF5E70020, &wupserver_bin, wupserver_bin_len);
+		DCStoreRange((void*)0xF5E70000, wupserver_bin_len + 0x40);
+		IOSUExploit();
+		//done with iosu exploit, take over mcp
+		if(MCPHookOpen() < 0)
+		{
+			println(line++,"MCP hook could not be opened!");
+			goto prgEnd;
+		}
+		println(line++,"Done!");
 	}
-	println(6,"Done!");
 
 	//mount with full permissions
 	fsaFd = IOSUHAX_FSA_Open();
 	if(fsaFd < 0)
 	{
-		println(7,"FSA could not be opened!");
+		println(line++,"FSA could not be opened!");
 		goto prgEnd;
 	}
 	int ret = IOSUHAX_FSA_Mount(fsaFd, "/dev/sdcard01", sdCardVolPath, 2, (void*)0, 0);
 	if(ret < 0)
 	{
-		println(7,"Failed to mount SD!");
+		println(line++,"Failed to mount SD!");
 		goto prgEnd;
 	}
 	else
@@ -154,7 +165,7 @@ int Menu_Main(void)
 	ret = IOSUHAX_FSA_Mount(fsaFd, "/dev/slccmpt01", vWiiVolPath, 2, (void*)0, 0);
 	if(ret < 0)
 	{
-		println(7,"Failed to mount vWii NAND!");
+		println(line++,"Failed to mount vWii NAND!");
 		goto prgEnd;
 	}
 	else
@@ -166,14 +177,14 @@ int Menu_Main(void)
 		ret = IOSUHAX_FSA_OpenFile(fsaFd, vWiiAppPath, "rb", &vWiiFd);
 		if(ret < 0)
 		{
-			println(7,"Failed to open mii channel app!");
+			println(line++,"Failed to open mii channel app!");
 			goto prgEnd;
 		}
 		fileStat_s stats;
 		ret = IOSUHAX_FSA_StatFile(fsaFd, vWiiFd, &stats);
 		if(ret < 0)
 		{
-			println(7,"Failed to stat app file!");
+			println(line++,"Failed to stat app file!");
 			goto prgEnd;
 		}
 		char *appBuf = malloc(stats.size);
@@ -184,7 +195,7 @@ int Menu_Main(void)
 			int result = IOSUHAX_FSA_ReadFile(fsaFd, appBuf + done, 0x01, read_size, vWiiFd, 0);
 			if(result <= 0)
 			{
-				println(7,"Failed to read app file!");
+				println(line++,"Failed to read app file!");
 				goto prgEnd;
 			}
 			else
@@ -200,7 +211,7 @@ int Menu_Main(void)
 			ret = IOSUHAX_FSA_OpenFile(fsaFd, sdBackupPath, "wb", &sdFd);
 			if(ret < 0)
 			{
-				println(7,"Failed to open backup file!");
+				println(line++,"Failed to open backup file!");
 				goto prgEnd;
 			}
 			done = 0;
@@ -210,7 +221,7 @@ int Menu_Main(void)
 				int result = IOSUHAX_FSA_WriteFile(fsaFd, appBuf + done, 0x01, write_size, sdFd, 0);
 				if(result <= 0)
 				{
-					println(7,"Failed to write backup file!");
+					println(line++,"Failed to write backup file!");
 					goto prgEnd;
 				}
 				else
@@ -231,7 +242,7 @@ int Menu_Main(void)
 		ret = IOSUHAX_FSA_OpenFile(fsaFd, vWiiAppPath, "wb", &vWiiFd);
 		if(ret < 0)
 		{
-			println(7,"Failed to open mii channel app!");
+			println(line++,"Failed to open mii channel app!");
 			goto prgEnd;
 		}
 		done = 0;
@@ -241,13 +252,13 @@ int Menu_Main(void)
 			int result = IOSUHAX_FSA_WriteFile(fsaFd, appBuf + done, 0x01, write_size, vWiiFd, 0);
 			if(result <= 0)
 			{
-				println(7,"Failed to write injected app!");
+				println(line++,"Failed to write injected app!");
 				goto prgEnd;
 			}
 			else
 				done += result;
 		}
-		println(7,"Successfully injected wuphax!");
+		println(line++,"Successfully injected wuphax!");
 		//done writing injected app
 		IOSUHAX_FSA_CloseFile(fsaFd, vWiiFd);
 		vWiiFd = -1;
@@ -258,14 +269,14 @@ int Menu_Main(void)
 		ret = IOSUHAX_FSA_OpenFile(fsaFd, sdBackupPath, "rb", &sdFd);
 		if(ret < 0)
 		{
-			println(7,"Backup file not found!");
+			println(line++,"Backup file not found!");
 			goto prgEnd;
 		}
 		fileStat_s stats;
 		ret = IOSUHAX_FSA_StatFile(fsaFd, sdFd, &stats);
 		if(ret < 0)
 		{
-			println(7,"Failed to stat backup file!");
+			println(line++,"Failed to stat backup file!");
 			goto prgEnd;
 		}
 		appBuf = malloc(stats.size);
@@ -276,7 +287,7 @@ int Menu_Main(void)
 			int result = IOSUHAX_FSA_ReadFile(fsaFd, appBuf + done, 0x01, read_size, sdFd, 0);
 			if(result <= 0)
 			{
-				println(7,"Failed to read backup file!");
+				println(line++,"Failed to read backup file!");
 				goto prgEnd;
 			}
 			else
@@ -288,7 +299,7 @@ int Menu_Main(void)
 		ret = IOSUHAX_FSA_OpenFile(fsaFd, vWiiAppPath, "wb", &vWiiFd);
 		if(ret < 0)
 		{
-			println(7,"Failed to open mii channel app!");
+			println(line++,"Failed to open mii channel app!");
 			goto prgEnd;
 		}
 		done = 0;
@@ -298,13 +309,13 @@ int Menu_Main(void)
 			int result = IOSUHAX_FSA_WriteFile(fsaFd, appBuf + done, 0x01, write_size, vWiiFd, 0);
 			if(result <= 0)
 			{
-				println(7,"Failed to write back app file!");
+				println(line++,"Failed to write back app file!");
 				goto prgEnd;
 			}
 			else
 				done += result;
 		}
-		println(7,"Mii Channel restored!");
+		println(line++,"Mii Channel restored!");
 		//restored original channel app
 		IOSUHAX_FSA_CloseFile(fsaFd, vWiiFd);
 		vWiiFd = -1;
@@ -327,13 +338,17 @@ prgEnd:
 			IOSUHAX_FSA_Unmount(fsaFd, vWiiVolPath, 2);
 		IOSUHAX_FSA_Close(fsaFd);
 	}
-	//close out old mcp instance
-	MCPHookClose();
+	//close out iosuhax
+	if(mcp_hook_fd >= 0)
+		MCPHookClose();
+	else
+		IOSUHAX_Close();
+	sleep(5);
 	//will do IOSU reboot
-    OSForceFullRelaunch();
-    SYSLaunchMenu();
-    OSScreenEnableEx(0, 0);
-    OSScreenEnableEx(1, 0);
+	OSForceFullRelaunch();
+	SYSLaunchMenu();
+	OSScreenEnableEx(0, 0);
+	OSScreenEnableEx(1, 0);
 	free(screenBuffer);
-    return EXIT_RELAUNCH_ON_LOAD;
+	return EXIT_RELAUNCH_ON_LOAD;
 }
