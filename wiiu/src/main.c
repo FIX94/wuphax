@@ -78,12 +78,13 @@ int Menu_Main(void)
 	InitSysFunctionPointers();
 	InitVPadFunctionPointers();
 	VPADInit();
+	memoryInitialize();
 
 	// Init screen
 	OSScreenInit();
 	int screen_buf0_size = OSScreenGetBufferSizeEx(0);
 	int screen_buf1_size = OSScreenGetBufferSizeEx(1);
-	uint8_t *screenBuffer = memalign(0x100, screen_buf0_size+screen_buf1_size);
+	uint8_t *screenBuffer = MEMBucket_alloc(screen_buf0_size+screen_buf1_size, 0x100);
 	OSScreenSetBufferEx(0, screenBuffer);
 	OSScreenSetBufferEx(1, (screenBuffer + screen_buf0_size));
 	OSScreenEnableEx(0, 1);
@@ -91,7 +92,7 @@ int Menu_Main(void)
 	OSScreenClearBufferEx(0, 0);
 	OSScreenClearBufferEx(1, 0);
 
-	println(0,"wuphax v1.1u2 by FIX94");
+	println(0,"wuphax v1.1u3 by FIX94");
 	println(2,"Press A to backup your Mii Channel and inject wuphax.");
 	println(3,"Press B to restore your Mii Channel from SD Card.");
 
@@ -107,7 +108,8 @@ int Menu_Main(void)
 		{
 			if((vpad.btns_d | vpad.btns_h) & VPAD_BUTTON_HOME)
 			{
-				free(screenBuffer);
+				MEMBucket_free(screenBuffer);
+				memoryRelease();
 				return EXIT_SUCCESS;
 			}
 			else if((vpad.btns_d | vpad.btns_h) & VPAD_BUTTON_A)
@@ -125,7 +127,7 @@ int Menu_Main(void)
 	int fsaFd = -1;
 	int sdMounted = 0, vWiiMounted = 0;
 	int sdFd = -1, vWiiFd = -1;
-	void *appBuf = NULL;
+	uint8_t *appBuf = NULL;
 
 	//open up iosuhax
 	int res = IOSUHAX_Open(NULL);
@@ -187,7 +189,7 @@ int Menu_Main(void)
 			println(line++,"Failed to stat app file!");
 			goto prgEnd;
 		}
-		char *appBuf = malloc(stats.size);
+		appBuf = MEMBucket_alloc(stats.size,4);
 		size_t done = 0;
 		while(done < stats.size)
 		{
@@ -279,7 +281,7 @@ int Menu_Main(void)
 			println(line++,"Failed to stat backup file!");
 			goto prgEnd;
 		}
-		appBuf = malloc(stats.size);
+		appBuf = MEMBucket_alloc(stats.size,4);
 		size_t done = 0;
 		while(done < stats.size)
 		{
@@ -324,7 +326,7 @@ int Menu_Main(void)
 prgEnd:
 	//used to deal with app
 	if(appBuf)
-		free(appBuf);
+		MEMBucket_free(appBuf);
 	//close down everything fsa related
 	if(fsaFd >= 0)
 	{
@@ -349,6 +351,7 @@ prgEnd:
 	SYSLaunchMenu();
 	OSScreenEnableEx(0, 0);
 	OSScreenEnableEx(1, 0);
-	free(screenBuffer);
+	MEMBucket_free(screenBuffer);
+	memoryRelease();
 	return EXIT_RELAUNCH_ON_LOAD;
 }
